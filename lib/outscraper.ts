@@ -40,14 +40,27 @@ export async function scrapeLocksmiths(
   if (!res.ok) throw new Error(`Outscraper error: ${res.status}`)
 
   const data = await res.json()
-  const results = data.data || []
+  const rawData = data.data || []
 
-  return results
-    .filter((r: Record<string, unknown>) => r.name)
-    .map((r: Record<string, string | number | string[]>) => {
-      // Extract first email from emails array
-      const emails = Array.isArray(r.emails) ? r.emails : []
-      const emailStr = emails[0] || null
+  // Outscraper returns a list of lists — flatten it
+  const flatResults: Record<string, unknown>[] = []
+  for (const group of rawData) {
+    if (Array.isArray(group)) {
+      flatResults.push(...group)
+    } else if (group && typeof group === 'object') {
+      flatResults.push(group as Record<string, unknown>)
+    }
+  }
+
+  return flatResults
+    .filter((r) => r.name)
+    .map((r) => {
+      // Email: try multiple fields
+      const emailsArr = Array.isArray(r.emails) ? r.emails : []
+      const emailStr = emailsArr[0] || r.email || null
+
+      // Website
+      const website = r.site || r.website || null
 
       const postalCode = String(r.postal_code || '')
       const dept = postalCode.slice(0, 2) || city.slice(0, 2)
@@ -59,7 +72,7 @@ export async function scrapeLocksmiths(
         address: typeof r.full_address === 'string' ? r.full_address : null,
         city: typeof r.city === 'string' ? r.city : city,
         dept,
-        website: typeof r.site === 'string' ? r.site : null,
+        website: typeof website === 'string' ? website : null,
         rating: typeof r.reviews_score === 'number' ? r.reviews_score : null,
         reviews: typeof r.reviews === 'number' ? r.reviews : null,
       }

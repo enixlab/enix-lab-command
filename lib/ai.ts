@@ -1,12 +1,37 @@
 const GEMINI_KEY = process.env.GEMINI_API_KEY
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
+const GROQ_KEY = process.env.GROQ_API_KEY
 
 export async function generateContent(
   prompt: string,
   systemPrompt?: string
 ): Promise<string> {
+  // Priority: Claude > Groq > Gemini
   if (ANTHROPIC_KEY) return generateWithClaude(prompt, systemPrompt)
+  if (GROQ_KEY) return generateWithGroq(prompt, systemPrompt)
   return generateWithGemini(prompt)
+}
+
+async function generateWithGroq(prompt: string, system?: string): Promise<string> {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: system || NEWSLAB_SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: 4096,
+      temperature: 0.85,
+    }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error?.message || 'Groq error')
+  return data.choices[0].message.content
 }
 
 async function generateWithClaude(prompt: string, system?: string): Promise<string> {

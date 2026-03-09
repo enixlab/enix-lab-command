@@ -17,13 +17,15 @@ export async function POST(req: NextRequest) {
 
     let added = 0
     for (const biz of businesses) {
-      if (!biz.email) continue
-      if (existingEmails.has(biz.email.toLowerCase())) continue
+      // Accept leads with email OR phone — skip only if absolutely no contact info
+      if (!biz.email && !biz.phone) continue
+      const emailKey = (biz.email || biz.phone || '').toLowerCase()
+      if (existingEmails.has(emailKey)) continue
 
       const lead: Lead = {
         id: randomUUID(),
         name: biz.name,
-        email: biz.email,
+        email: biz.email || `noemail-${Date.now()}@placeholder.invalid`,
         phone: biz.phone || undefined,
         city: biz.city,
         dept: biz.dept,
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
       }
 
       await upsertItem<Lead>(FILES.LEADS, lead)
-      existingEmails.add(biz.email.toLowerCase())
+      existingEmails.add(emailKey)
       added++
     }
 

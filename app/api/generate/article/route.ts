@@ -32,9 +32,27 @@ export async function POST() {
     for (const item of selected.slice(0, 3)) {
       try {
         const raw = `Titre: ${item.title}\nDescription: ${item.description}\nSource: ${item.source} (${item.lang})\nLien: ${item.link}`
-        const generated = await generateNewsLabArticle(raw, rejectedTopics)
+        let generated
 
-        // Skip if too similar to existing
+        try {
+          generated = await generateNewsLabArticle(raw, rejectedTopics)
+        } catch (aiError) {
+          // Fallback: create article directly from raw news data (no AI)
+          const tags = ['IA AGENTIQUE','BAD BUZZ','TECH-CRASH','MARKETING-LAB','SOCIAL-MEDIA','CRYPTO-GUÉRILLA','E-COMMERCE']
+          const tagGuess = tags.find(t =>
+            item.title.toLowerCase().includes(t.toLowerCase().split(' ')[0]) ||
+            item.description.toLowerCase().includes(t.toLowerCase().split(' ')[0])
+          ) || tags[Math.floor(Math.random() * tags.length)]
+
+          generated = {
+            tag: tagGuess,
+            title: item.title,
+            excerpt: item.description.slice(0, 160),
+            content: `<h1>${item.title}</h1><p>${item.description}</p><p>Source : <a href="${item.link}" target="_blank">${item.source}</a></p><hr><p style="color:#888;font-size:12px">⚠️ Article non transformé — configurez votre clé ANTHROPIC_API_KEY ou GROQ_API_KEY pour activer la rédaction IA NewsLab.</p>`
+          }
+          errors.push(`AI error (fallback used): ${String(aiError).slice(0, 100)}`)
+        }
+
         const titleKey = generated.title.slice(0, 30).toLowerCase()
         if (existingTitles.has(titleKey)) continue
 
