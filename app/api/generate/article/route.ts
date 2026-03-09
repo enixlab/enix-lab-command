@@ -54,6 +54,14 @@ export async function POST() {
         const titleKey = generated.title.slice(0, 35).toLowerCase()
         if (existingTitles.has(titleKey)) continue
 
+        // Validate: must be a real French NewsLab article (not raw English RSS)
+        const contentLen = (generated.content || '').length
+        const isFrench = /imaginez|verdict|newslab|pourquoi|réalisme|dilemme|aujourd'hui/i.test(generated.content || '')
+        if (contentLen < 1200 || !isFrench) {
+          errors.push(`Article rejeté (contenu trop court ou non français): ${item.title.slice(0, 60)}`)
+          continue
+        }
+
         const article: Article = {
           id: randomUUID(),
           tag: generated.tag,
