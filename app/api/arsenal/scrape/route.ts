@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const { city = 'Paris', limit = 10 } = await req.json()
 
     const existingLeads = await readData<Lead>(FILES.LEADS)
-    const existingKeys = new Set(existingLeads.map(l => (l.email + l.name).toLowerCase()))
+    const existingKeys = new Set(existingLeads.map(l => ((l.email || '') + l.name).toLowerCase()))
 
     const businesses = await scrapeLocksmiths(city, limit)
 
@@ -21,16 +21,17 @@ export async function POST(req: NextRequest) {
     const results: { name: string; landingUrl?: string; emailSent: boolean }[] = []
 
     for (const biz of businesses) {
+      // Skip leads with absolutely no contact info
       if (!biz.email && !biz.phone) continue
       const key = ((biz.email || '') + biz.name).toLowerCase()
-      if (existingKeys.has(key)) continue
+      if (existingKeys.has(key) && key !== biz.name.toLowerCase()) continue
 
       // 1. Save lead to GitHub
       const leadId = randomUUID()
       const lead: Lead = {
         id: leadId,
         name: biz.name,
-        email: biz.email || `noemail-${Date.now()}@placeholder.invalid`,
+        email: biz.email || undefined,
         phone: biz.phone || undefined,
         city: biz.city,
         dept: biz.dept,

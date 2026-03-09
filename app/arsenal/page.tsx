@@ -66,7 +66,7 @@ export default function ArsenalPage() {
       })
       const data = await res.json()
       if (data.success) {
-        showMsg(`✅ Mail ${mailNum} envoyé à ${lead.email}`)
+        showMsg(`✅ Mail ${mailNum} envoyé à ${lead.email || lead.name}`)
         load()
       } else {
         showMsg(`❌ Erreur: ${data.error}`)
@@ -81,7 +81,7 @@ export default function ArsenalPage() {
   const filtered = leads.filter(l => {
     const matchFilter = filter === 'all' || l.status === filter
     const matchSearch = !search || l.name.toLowerCase().includes(search.toLowerCase()) ||
-      l.city.toLowerCase().includes(search.toLowerCase()) || l.email.toLowerCase().includes(search.toLowerCase())
+      l.city.toLowerCase().includes(search.toLowerCase()) || (l.email || '').toLowerCase().includes(search.toLowerCase())
     return matchFilter && matchSearch
   })
 
@@ -192,7 +192,9 @@ export default function ArsenalPage() {
                   <tr key={lead.id}>
                     <td style={{ color: 'var(--text1)', fontWeight: 500 }}>{lead.name}</td>
                     <td>{lead.city}</td>
-                    <td className="font-mono" style={{ fontSize: 12 }}>{lead.email}</td>
+                    <td className="font-mono" style={{ fontSize: 12, color: lead.email ? 'var(--text2)' : 'var(--text3)' }}>
+                      {lead.email || <em>Pas d&apos;email</em>}
+                    </td>
                     <td className="font-mono" style={{ fontSize: 12 }}>{lead.phone || '—'}</td>
                     <td><span className={`badge ${STATUS_BADGE[lead.status] || 'badge-gray'}`}>{STATUS_LABELS[lead.status]}</span></td>
                     <td>
