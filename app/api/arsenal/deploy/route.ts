@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Send email
+    if (!lead.email) throw new Error('Pas d\'email pour ce lead')
     await sendEmail({ to: lead.email, subject, html: emailHtml })
 
     // Update lead

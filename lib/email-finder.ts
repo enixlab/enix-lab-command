@@ -7,7 +7,7 @@ const EMAIL_REGEX = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
 
 function extractEmails(html: string): string[] {
   const found = html.match(EMAIL_REGEX) || []
-  return [...new Set(found)].filter(e =>
+  return Array.from(new Set(found)).filter(e =>
     !e.includes('example') &&
     !e.includes('test@') &&
     !e.includes('placeholder') &&
