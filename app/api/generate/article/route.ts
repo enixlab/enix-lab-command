@@ -49,19 +49,7 @@ export async function POST() {
         const raw = `Titre: ${item.title}\nDescription: ${item.description}\nSource: ${item.source} (${item.lang})\nLien: ${item.link}`
         let generated
 
-        try {
-          generated = await generateNewsLabArticle(raw, rejectedTopics)
-        } catch (aiError) {
-          // Clean fallback: use guessed category
-          const catGuess = guessCategory(item.title, item.description)
-          generated = {
-            tag: catGuess,
-            title: item.title,
-            excerpt: item.description.slice(0, 180),
-            content: `<h1>${item.title}</h1><p>${item.description}</p><p>Source : <a href="${item.link}" target="_blank">${item.source}</a></p>`,
-          }
-          errors.push(`AI fallback: ${String(aiError).slice(0, 80)}`)
-        }
+        generated = await generateNewsLabArticle(raw, rejectedTopics)
 
         const titleKey = generated.title.slice(0, 35).toLowerCase()
         if (existingTitles.has(titleKey)) continue

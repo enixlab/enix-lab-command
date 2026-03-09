@@ -258,8 +258,15 @@ export default function NewsLabPage() {
                           </span>
                         )}
                       </div>
-                      <div className="font-oswald" style={{ fontSize: 19, color: 'white', lineHeight: 1.25 }}>
+                      <div
+                        className="font-oswald"
+                        style={{ fontSize: 19, color: 'white', lineHeight: 1.25, cursor: 'pointer' }}
+                        onClick={() => setExpanded(expanded === article.id ? null : article.id)}
+                      >
                         {article.title}
+                        <span style={{ fontSize: 12, color: 'var(--brand)', marginLeft: 8, opacity: 0.7 }}>
+                          {expanded === article.id ? '▲' : '▼'}
+                        </span>
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, lineHeight: 1.6 }}>
                         {article.excerpt}
