@@ -8,6 +8,7 @@ export interface Lead {
   address?: string
   rating?: number
   reviews?: number
+  website?: string
   landingUrl?: string
   status: 'nouveau' | 'mail1_envoyé' | 'mail2_envoyé' | 'mail3_envoyé' | 'réponse' | 'converti' | 'stop'
   date: string

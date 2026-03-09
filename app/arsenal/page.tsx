@@ -21,6 +21,7 @@ export default function ArsenalPage() {
   const [filter, setFilter] = useState<string>('all')
   const [msg, setMsg] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [enriching, setEnriching] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -34,6 +35,22 @@ export default function ArsenalPage() {
   const showMsg = (m: string) => {
     setMsg(m)
     setTimeout(() => setMsg(null), 4000)
+  }
+
+  const enrichEmails = async () => {
+    setEnriching(true)
+    showMsg('🔍 Recherche emails en cours (Pages Jaunes, Kompass, sites web)...')
+    try {
+      const res = await fetch('/api/arsenal/enrich', { method: 'POST' })
+      const data = await res.json()
+      if (data.error) showMsg(`❌ ${data.error}`)
+      else showMsg(`✅ ${data.enriched}/${data.total} emails trouvés`)
+      load()
+    } catch {
+      showMsg('❌ Erreur enrichissement')
+    } finally {
+      setEnriching(false)
+    }
   }
 
   const launchScrape = async () => {
@@ -87,6 +104,7 @@ export default function ArsenalPage() {
 
   const stats = {
     total: leads.length,
+    sansEmail: leads.filter(l => !l.email).length,
     contacted: leads.filter(l => ['mail1_envoyé','mail2_envoyé','mail3_envoyé'].includes(l.status)).length,
     réponses: leads.filter(l => l.status === 'réponse').length,
     convertis: leads.filter(l => l.status === 'converti').length,
@@ -109,9 +127,10 @@ export default function ArsenalPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-5 gap-4 mb-6">
         {[
           { val: stats.total, label: 'LEADS TOTAL', color: 'white' },
+          { val: stats.sansEmail, label: 'SANS EMAIL', color: 'var(--danger)' },
           { val: stats.contacted, label: 'CONTACTÉS', color: 'var(--warning)' },
           { val: stats.réponses, label: 'RÉPONSES', color: 'var(--cyan)' },
           { val: stats.convertis, label: 'CONVERTIS', color: 'var(--success)' },
@@ -142,9 +161,12 @@ export default function ArsenalPage() {
           <button onClick={launchScrape} disabled={scraping} className="btn-brand" style={{ fontSize: 13 }}>
             {scraping ? '⏳ Scraping...' : '🔎 Lancer'}
           </button>
+          <button onClick={enrichEmails} disabled={enriching || stats.sansEmail === 0} className="btn-ghost" style={{ fontSize: 13 }}>
+            {enriching ? '⏳ Recherche...' : `📧 Enrichir emails (${stats.sansEmail})`}
+          </button>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 12 }}>
-          Scrape Google Maps → filtre sans site + avec email → génère landing page → envoie séquence email
+          Scrape Google Maps → trouve emails (Pages Jaunes, Kompass, site web) → génère landing page → envoie séquence email
         </div>
       </div>
 

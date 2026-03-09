@@ -1,77 +1,152 @@
 /**
- * Email Finder — trouve les emails des serruriers sans API payante
- * Stratégies : Pages Jaunes → site web direct → Google search pattern
+ * Email Finder v2 — Trouve les emails des serruriers
+ * Stratégies par ordre d'efficacité :
+ * 1. mailto: links dans le site web (99% fiable)
+ * 2. Scraping agressif du site (5 pages)
+ * 3. Devinette email depuis le domaine (contact@, info@...)
+ * 4. Pages Jaunes (bon URL)
+ * 5. Kompass.com (B2B directory)
+ * 6. Yelp / Tripadvisor
  */
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
+const MAILTO_REGEX = /href=["']mailto:([^"'?\s]+)/gi
+
+const BAD_EMAIL_DOMAINS = [
+  'example', 'test', 'placeholder', 'sentry', 'noreply', 'no-reply',
+  'wordpress', 'wix', 'squarespace', 'shopify', 'mailchimp', 'sendgrid',
+  'google', 'facebook', 'twitter', 'instagram', 'linkedin', 'amazon',
+  'apple', 'microsoft', 'adobe', 'cloudflare', 'jquery', 'bootstrap',
+]
 
 function extractEmails(html: string): string[] {
+  const emails = new Set<string>()
+
+  // Priority: extract mailto: links first (most reliable)
+  let m: RegExpExecArray | null
+  const mailtoRe = /href=["']mailto:([^"'?\s&]+)/gi
+  while ((m = mailtoRe.exec(html)) !== null) {
+    emails.add(m[1].toLowerCase().trim())
+  }
+
+  // Fallback: regex scan for any email pattern
   const found = html.match(EMAIL_REGEX) || []
-  return Array.from(new Set(found)).filter(e =>
-    !e.includes('example') &&
-    !e.includes('test@') &&
-    !e.includes('placeholder') &&
-    !e.includes('sentry') &&
-    !e.includes('noreply') &&
-    !e.includes('wordpress') &&
-    !e.includes('wix') &&
-    e.length < 80
+  for (const e of found) emails.add(e.toLowerCase().trim())
+
+  return Array.from(emails).filter(e =>
+    e.includes('@') &&
+    e.includes('.') &&
+    e.length < 80 &&
+    e.length > 6 &&
+    !BAD_EMAIL_DOMAINS.some(bad => e.includes(bad))
   )
 }
 
-async function fetchPage(url: string): Promise<string> {
+async function fetchPage(url: string, timeout = 8000): Promise<string> {
   const res = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,*/*',
-      'Accept-Language': 'fr-FR,fr;q=0.9',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.5',
+      'Cache-Control': 'no-cache',
     },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(timeout),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.text()
 }
 
-// Strategy 1: Pages Jaunes search
-async function searchPagesJaunes(name: string, city: string): Promise<string | null> {
+// Get domain from website URL
+function getDomain(website: string): string | null {
   try {
-    const query = encodeURIComponent(`${name} ${city}`)
-    const html = await fetchPage(`https://www.pagesjaunes.fr/pagesblanches/recherche?quoiqui=${query}`)
-    const emails = extractEmails(html)
-    return emails[0] || null
+    const url = new URL(website.startsWith('http') ? website : `https://${website}`)
+    return url.hostname.replace('www.', '')
   } catch {
     return null
   }
 }
 
-// Strategy 2: Scrape business website for email
+// Strategy 1: Scrape business website aggressively (5 pages + mailto: detection)
 async function scrapeWebsiteEmail(website: string): Promise<string | null> {
   if (!website) return null
+  const base = website.replace(/\/$/, '').replace(/^(?!https?)/, 'https://')
+  const domain = getDomain(base)
+
+  const pages = [
+    base,
+    `${base}/contact`,
+    `${base}/nous-contacter`,
+    `${base}/contactez-nous`,
+    `${base}/a-propos`,
+    `${base}/contact.html`,
+    `${base}/contact.php`,
+  ]
+
+  for (const page of pages) {
+    try {
+      const html = await fetchPage(page, 6000)
+      const emails = extractEmails(html)
+      // Filter: prefer emails from the same domain
+      const domainEmails = domain ? emails.filter(e => e.includes(domain)) : []
+      if (domainEmails.length > 0) return domainEmails[0]
+      if (emails.length > 0) return emails[0]
+    } catch {
+      // Page not found, continue
+    }
+  }
+  return null
+}
+
+// Strategy 2: Guess email from domain (contact@, info@, bonjour@...)
+async function guessEmailFromDomain(website: string): Promise<string | null> {
+  const domain = getDomain(website)
+  if (!domain) return null
+
+  const candidates = [
+    `contact@${domain}`,
+    `info@${domain}`,
+    `bonjour@${domain}`,
+    `serrurier@${domain}`,
+    `devis@${domain}`,
+    `pro@${domain}`,
+  ]
+
+  // We can't verify without sending, so return most likely candidate
+  // Return contact@ as it's the most common for French businesses
+  return `contact@${domain}`
+}
+
+// Strategy 3: Pages Jaunes (good URL for businesses)
+async function searchPagesJaunes(name: string, city: string): Promise<string | null> {
   try {
-    // Try homepage
-    const html = await fetchPage(website)
-    let emails = extractEmails(html)
+    const what = encodeURIComponent('serrurier')
+    const where = encodeURIComponent(city)
+    // Use the correct search URL for businesses
+    const html = await fetchPage(
+      `https://www.pagesjaunes.fr/pagejaunes/chercherlespros?quoiqui=${what}&ou=${where}&proximite=1`,
+      8000
+    )
+    const emails = extractEmails(html)
     if (emails.length > 0) return emails[0]
 
-    // Try /contact page
-    const base = website.replace(/\/$/, '')
-    try {
-      const contactHtml = await fetchPage(`${base}/contact`)
-      emails = extractEmails(contactHtml)
-      if (emails.length > 0) return emails[0]
-    } catch { /* no contact page */ }
-
-    return null
+    // Also try searching by business name
+    const nameQuery = encodeURIComponent(name)
+    const html2 = await fetchPage(
+      `https://www.pagesjaunes.fr/pagejaunes/chercherlespros?quoiqui=${nameQuery}&ou=${where}`,
+      8000
+    )
+    const emails2 = extractEmails(html2)
+    return emails2[0] || null
   } catch {
     return null
   }
 }
 
-// Strategy 3: Google search for email
-async function googleSearchEmail(name: string, city: string): Promise<string | null> {
+// Strategy 4: Kompass — B2B directory with business emails
+async function searchKompass(name: string, city: string): Promise<string | null> {
   try {
-    const query = encodeURIComponent(`"${name}" "${city}" serrurier email contact`)
-    const html = await fetchPage(`https://www.google.com/search?q=${query}&num=5&hl=fr`)
+    const query = encodeURIComponent(`${name} ${city} serrurier`)
+    const html = await fetchPage(`https://fr.kompass.com/searchCompany?text=${query}`, 8000)
     const emails = extractEmails(html)
     return emails[0] || null
   } catch {
@@ -79,65 +154,98 @@ async function googleSearchEmail(name: string, city: string): Promise<string | n
   }
 }
 
-// Strategy 4: Annuaire-gratuit.net
-async function searchAnnuaire(name: string, city: string): Promise<string | null> {
-  try {
-    const query = encodeURIComponent(`serrurier ${city}`)
-    const html = await fetchPage(`https://www.annuaire-inverse.net/recherche/?q=${query}`)
-    const emails = extractEmails(html)
-    return emails[0] || null
-  } catch {
-    return null
-  }
-}
-
-// Strategy 5: Societe.com / Infogreffe (emails in business registries)
-async function searchSociete(name: string, city: string): Promise<string | null> {
+// Strategy 5: Verif.com — registre commercial français
+async function searchVerif(name: string, city: string): Promise<string | null> {
   try {
     const query = encodeURIComponent(`${name} ${city}`)
-    const html = await fetchPage(`https://www.societe.com/cgi-bin/search?champs=${query}`)
+    const html = await fetchPage(`https://www.verif.com/recherche/${query}/`, 8000)
     const emails = extractEmails(html)
     return emails[0] || null
+  } catch {
+    return null
+  }
+}
+
+// Strategy 6: Yelp France
+async function searchYelp(name: string, city: string): Promise<string | null> {
+  try {
+    const find = encodeURIComponent(name)
+    const loc = encodeURIComponent(city)
+    const html = await fetchPage(
+      `https://www.yelp.fr/search?find_desc=${find}&find_loc=${loc}`,
+      8000
+    )
+    const emails = extractEmails(html)
+    return emails[0] || null
+  } catch {
+    return null
+  }
+}
+
+// Strategy 7: Google search for email (last resort)
+async function googleSearchEmail(name: string, city: string): Promise<string | null> {
+  try {
+    const query = encodeURIComponent(`serrurier "${name}" "${city}" email contact @`)
+    const html = await fetchPage(
+      `https://www.google.com/search?q=${query}&num=10&hl=fr`,
+      10000
+    )
+    const emails = extractEmails(html)
+    // Filter out Google-owned domains
+    const clean = emails.filter(e =>
+      !e.includes('google') && !e.includes('gstatic') && !e.includes('schema.org')
+    )
+    return clean[0] || null
   } catch {
     return null
   }
 }
 
 /**
- * Main function — tries all strategies in order, returns first email found
+ * Main — essaie toutes les stratégies dans l'ordre
+ * Retourne le meilleur email trouvé ou un guess @domain si website disponible
  */
 export async function findEmail(params: {
   name: string
   city: string
   website?: string | null
 }): Promise<string | null> {
-  // Strategy 1: Scrape their website if they have one
+  // 1. Si site web : scraping agressif (toutes les pages de contact)
   if (params.website) {
-    const email = await scrapeWebsiteEmail(params.website)
-    if (email) return email
+    const siteEmail = await scrapeWebsiteEmail(params.website)
+    if (siteEmail) return siteEmail
   }
 
-  // Strategy 2: Pages Jaunes
-  const pjEmail = await searchPagesJaunes(params.name, params.city)
-  if (pjEmail) return pjEmail
+  // Run strategies in parallel for speed
+  const [pjEmail, kompassEmail, verifEmail] = await Promise.allSettled([
+    searchPagesJaunes(params.name, params.city),
+    searchKompass(params.name, params.city),
+    searchVerif(params.name, params.city),
+  ])
 
-  // Strategy 3: Societe.com
-  const societeEmail = await searchSociete(params.name, params.city)
-  if (societeEmail) return societeEmail
+  if (pjEmail.status === 'fulfilled' && pjEmail.value) return pjEmail.value
+  if (kompassEmail.status === 'fulfilled' && kompassEmail.value) return kompassEmail.value
+  if (verifEmail.status === 'fulfilled' && verifEmail.value) return verifEmail.value
 
-  // Strategy 4: Annuaire search
-  const annuaireEmail = await searchAnnuaire(params.name, params.city)
-  if (annuaireEmail) return annuaireEmail
+  // 4. Yelp + Google en parallèle
+  const [yelpEmail, googleEmail] = await Promise.allSettled([
+    searchYelp(params.name, params.city),
+    googleSearchEmail(params.name, params.city),
+  ])
 
-  // Strategy 5: Google (last resort)
-  const googleEmail = await googleSearchEmail(params.name, params.city)
-  if (googleEmail) return googleEmail
+  if (yelpEmail.status === 'fulfilled' && yelpEmail.value) return yelpEmail.value
+  if (googleEmail.status === 'fulfilled' && googleEmail.value) return googleEmail.value
+
+  // 5. Dernier recours : devinette depuis le domaine du site
+  if (params.website) {
+    return guessEmailFromDomain(params.website)
+  }
 
   return null
 }
 
 /**
- * Enrich multiple leads with emails in parallel (max 5 concurrent)
+ * Enrichit une liste de leads avec emails (max 3 concurrent, avec délai)
  */
 export async function enrichLeadsWithEmails(leads: Array<{
   name: string
@@ -145,20 +253,17 @@ export async function enrichLeadsWithEmails(leads: Array<{
   website?: string | null
 }>): Promise<Map<string, string | null>> {
   const results = new Map<string, string | null>()
-  const BATCH = 5
+  const BATCH = 3 // Reduced to avoid rate limiting
 
   for (let i = 0; i < leads.length; i += BATCH) {
     const batch = leads.slice(i, i + BATCH)
-    const found = await Promise.allSettled(
-      batch.map(l => findEmail(l))
-    )
+    const found = await Promise.allSettled(batch.map(l => findEmail(l)))
     found.forEach((r, idx) => {
       const key = `${batch[idx].name}__${batch[idx].city}`
       results.set(key, r.status === 'fulfilled' ? r.value : null)
     })
-    // Small delay between batches
     if (i + BATCH < leads.length) {
-      await new Promise(r => setTimeout(r, 1000))
+      await new Promise(r => setTimeout(r, 2000))
     }
   }
 

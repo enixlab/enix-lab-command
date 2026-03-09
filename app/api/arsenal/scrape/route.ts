@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         city: biz.city,
         dept: biz.dept,
         address: biz.address || undefined,
+        website: biz.website || undefined,
         rating: biz.rating || undefined,
         reviews: biz.reviews || undefined,
         status: 'nouveau',
