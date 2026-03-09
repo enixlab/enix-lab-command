@@ -11,7 +11,7 @@ export async function generateContent(
   // Priority: Claude Opus > Groq > Gemini
   if (ANTHROPIC_KEY) return generateWithClaude(prompt, systemPrompt)
   if (GROQ_KEY) return generateWithGroq(prompt, systemPrompt)
-  return generateWithGemini(prompt)
+  return generateWithGemini(prompt, systemPrompt)
 }
 
 async function generateWithGroq(prompt: string, system?: string): Promise<string> {
@@ -56,13 +56,19 @@ async function generateWithClaude(prompt: string, system?: string): Promise<stri
   return data.content[0].text
 }
 
-async function generateWithGemini(prompt: string): Promise<string> {
+async function generateWithGemini(prompt: string, system?: string): Promise<string> {
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+  }
+  if (system) {
+    body.systemInstruction = { parts: [{ text: system }] }
+  }
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      body: JSON.stringify(body),
     }
   )
   const data = await res.json()
