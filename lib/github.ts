@@ -36,6 +36,27 @@ async function putFile(path: string, data: unknown, sha?: string | null) {
     headers: headers(),
     body: JSON.stringify(body),
   })
+
+  // 409 = SHA conflict — refetch the latest SHA and retry once
+  if (res.status === 409) {
+    const fresh = await getFile(path)
+    const retryBody: Record<string, string> = {
+      message: `[ENIX CMD] Update ${path}`,
+      content,
+    }
+    if (fresh.sha) retryBody.sha = fresh.sha
+    const retry = await fetch(`${API}/repos/${GITHUB_REPO}/contents/${path}`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(retryBody),
+    })
+    if (!retry.ok) {
+      const err = await retry.text()
+      throw new Error(`GitHub PUT retry error: ${retry.status} — ${err}`)
+    }
+    return retry.json()
+  }
+
   if (!res.ok) {
     const err = await res.text()
     throw new Error(`GitHub PUT error: ${res.status} — ${err}`)
