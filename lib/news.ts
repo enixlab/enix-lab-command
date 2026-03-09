@@ -4,37 +4,60 @@ import type { NewsItem } from './types'
 const parser = new XMLParser({ ignoreAttributes: false })
 
 const RSS_SOURCES = [
-  { url: 'https://news.google.com/rss/search?q=bad+buzz+marketing+2026&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'BAD BUZZ' },
-  { url: 'https://news.google.com/rss/search?q=intelligence+artificielle+marketing&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'IA AGENTIQUE' },
-  { url: 'https://news.google.com/rss/search?q=startup+scandale+france&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'TECH-CRASH' },
-  { url: 'https://news.google.com/rss/search?q=crypto+hack+scandal+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'CRYPTO-GUÉRILLA' },
-  { url: 'https://news.google.com/rss/search?q=AI+marketing+disruption+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'IA AGENTIQUE' },
-  { url: 'https://news.google.com/rss/search?q=social+media+fail+brand&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'BAD BUZZ' },
-  { url: 'https://news.google.com/rss/search?q=tech+company+crash+layoffs&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'TECH-CRASH' },
-  { url: 'https://news.google.com/rss/search?q=marketing+digital+europe&hl=fr&gl=BE&ceid=BE:fr', lang: 'EU', category: 'MARKETING-LAB' },
-  { url: 'https://news.google.com/rss/search?q=reseaux+sociaux+tendance&hl=fr&gl=CH&ceid=CH:fr', lang: 'CH', category: 'SOCIAL-MEDIA' },
-  { url: 'https://news.google.com/rss/search?q=ecommerce+disruption+2026&hl=en&gl=GB&ceid=GB:en', lang: 'EU', category: 'E-COMMERCE' },
+  // France
+  { url: 'https://news.google.com/rss/search?q=intelligence+artificielle+entreprise&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'IA' },
+  { url: 'https://news.google.com/rss/search?q=bad+buzz+marque+france+2026&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'Bad Buzz' },
+  { url: 'https://news.google.com/rss/search?q=startup+licenciement+france&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'Emploi / IA' },
+  { url: 'https://news.google.com/rss/search?q=marketing+digital+tendance+2026&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'Marketing' },
+  { url: 'https://news.google.com/rss/search?q=ecommerce+france+strategy&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'Business' },
+  { url: 'https://news.google.com/rss/search?q=crypto+bitcoin+france+regulation&hl=fr&gl=FR&ceid=FR:fr', lang: 'FR', category: 'Crypto' },
+  // USA / English
+  { url: 'https://news.google.com/rss/search?q=AI+artificial+intelligence+disruption+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'IA' },
+  { url: 'https://news.google.com/rss/search?q=crypto+hack+scandal+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'Crypto' },
+  { url: 'https://news.google.com/rss/search?q=social+media+brand+fail+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'Bad Buzz' },
+  { url: 'https://news.google.com/rss/search?q=tech+company+layoffs+AI+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'Emploi / IA' },
+  { url: 'https://news.google.com/rss/search?q=AI+security+breach+data+leak&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'IA / Sécurité' },
+  { url: 'https://news.google.com/rss/search?q=startup+funding+valuation+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'Business' },
+  // UK
+  { url: 'https://news.google.com/rss/search?q=ecommerce+disruption+retail+2026&hl=en&gl=GB&ceid=GB:en', lang: 'UK', category: 'Business' },
+  { url: 'https://news.google.com/rss/search?q=marketing+agency+AI+disruption&hl=en&gl=GB&ceid=GB:en', lang: 'UK', category: 'Marketing' },
+  // Suisse
+  { url: 'https://news.google.com/rss/search?q=reseaux+sociaux+influence+tendance&hl=fr&gl=CH&ceid=CH:fr', lang: 'CH', category: 'Marketing' },
+  // Crypto / Finance
+  { url: 'https://news.google.com/rss/search?q=bitcoin+ethereum+altcoin+crash+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'Crypto' },
+  { url: 'https://news.google.com/rss/search?q=DeFi+Web3+regulation+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'Crypto' },
+  // Tech
+  { url: 'https://news.google.com/rss/search?q=OpenAI+Anthropic+Google+DeepMind+2026&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'IA' },
+  { url: 'https://news.google.com/rss/search?q=cybersecurity+breach+espionage+AI&hl=en&gl=US&ceid=US:en', lang: 'US', category: 'IA / Sécurité' },
 ]
 
-async function fetchRSS(url: string, lang: string): Promise<NewsItem[]> {
+const DIRECT_RSS = [
+  { url: 'https://techcrunch.com/feed/', source: 'TechCrunch', lang: 'US', category: 'Tech' },
+  { url: 'https://www.journaldunet.com/rss/', source: 'JDN', lang: 'FR', category: 'Business' },
+  { url: 'https://siecledigital.fr/feed/', source: 'Siècle Digital', lang: 'FR', category: 'IA' },
+  { url: 'https://www.01net.com/rss/actualites/', source: '01Net', lang: 'FR', category: 'Tech' },
+  { url: 'https://decrypt.co/feed', source: 'Decrypt', lang: 'US', category: 'Crypto' },
+]
+
+async function fetchRSS(url: string, lang: string, source: string = 'Google News'): Promise<NewsItem[]> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'EnixLabBot/1.0' },
-      next: { revalidate: 3600 },
+      headers: { 'User-Agent': 'EnixLabBot/2.0' },
+      next: { revalidate: 1800 },
     })
     if (!res.ok) return []
     const xml = await res.text()
     const parsed = parser.parse(xml)
-    const items = parsed?.rss?.channel?.item || []
+    const items = parsed?.rss?.channel?.item || parsed?.feed?.entry || []
     const arr = Array.isArray(items) ? items : [items]
-    return arr.slice(0, 6).map((a: Record<string, string>) => ({
-      title: a.title || '',
-      description: String(a.description || a.summary || '').replace(/<[^>]+>/g, '').slice(0, 300),
+    return arr.slice(0, 5).map((a: Record<string, string>) => ({
+      title: String(a.title || '').replace(/<[^>]+>/g, '').trim(),
+      description: String(a.description || a.summary || a.content || '').replace(/<[^>]+>/g, '').slice(0, 350),
       link: a.link || '',
-      source: 'Google News',
+      source,
       lang,
-      pubDate: a.pubDate || new Date().toISOString(),
-    }))
+      pubDate: a.pubDate || a.updated || new Date().toISOString(),
+    })).filter(i => i.title.length > 15)
   } catch {
     return []
   }
@@ -44,18 +67,17 @@ async function fetchHackerNews(): Promise<NewsItem[]> {
   try {
     const res = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json')
     const ids: number[] = await res.json()
-    const top = ids.slice(0, 25)
     const stories = await Promise.all(
-      top.map((id) =>
+      ids.slice(0, 30).map((id) =>
         fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then((r) => r.json())
       )
     )
     return stories
-      .filter((s) => s?.title && s?.score > 80 && s?.url)
+      .filter((s) => s?.title && s?.score > 100 && s?.url)
       .slice(0, 8)
       .map((s) => ({
         title: s.title,
-        description: `${s.score} points | ${s.descendants || 0} comments | HN`,
+        description: `${s.score} pts | ${s.descendants || 0} commentaires — ${s.url?.split('/')[2] || 'HN'}`,
         link: s.url || `https://news.ycombinator.com/item?id=${s.id}`,
         source: 'HackerNews',
         lang: 'US',
@@ -67,21 +89,20 @@ async function fetchHackerNews(): Promise<NewsItem[]> {
 }
 
 async function fetchReddit(): Promise<NewsItem[]> {
-  try {
-    const subreddits = ['marketing', 'technology', 'entrepreneur', 'cryptocurrency', 'socialmedia']
-    const results: NewsItem[] = []
-    for (const sub of subreddits.slice(0, 3)) {
-      const res = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=10`, {
-        headers: { 'User-Agent': 'EnixLabBot/1.0' },
+  const subreddits = ['entrepreneur', 'marketing', 'technology', 'CryptoCurrency', 'AIPromptEngineering', 'MachineLearning', 'ecommerce', 'artificial']
+  const results: NewsItem[] = []
+  for (const sub of subreddits.slice(0, 5)) {
+    try {
+      const res = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=8`, {
+        headers: { 'User-Agent': 'EnixLabBot/2.0' },
       })
       const data = await res.json()
-      const posts = data?.data?.children || []
-      for (const post of posts.slice(0, 4)) {
+      for (const post of (data?.data?.children || []).slice(0, 4)) {
         const d = post.data
-        if (d.score > 500) {
+        if (d.score > 300 && d.title && !d.is_self) {
           results.push({
             title: d.title,
-            description: (d.selftext || '').slice(0, 200) || `r/${sub} | ${d.score} upvotes`,
+            description: (d.selftext || '').slice(0, 200) || `r/${sub} — ${d.score} upvotes`,
             link: `https://reddit.com${d.permalink}`,
             source: `Reddit r/${sub}`,
             lang: 'US',
@@ -89,43 +110,17 @@ async function fetchReddit(): Promise<NewsItem[]> {
           })
         }
       }
-    }
-    return results
-  } catch {
-    return []
+    } catch { /* continue */ }
   }
-}
-
-async function fetchDevTo(): Promise<NewsItem[]> {
-  try {
-    const tags = ['ai', 'marketing', 'webdev', 'startup']
-    const results: NewsItem[] = []
-    for (const tag of tags.slice(0, 2)) {
-      const res = await fetch(`https://dev.to/api/articles?tag=${tag}&per_page=5&top=7`)
-      const articles = await res.json()
-      for (const a of (Array.isArray(articles) ? articles : []).slice(0, 3)) {
-        results.push({
-          title: a.title,
-          description: a.description || '',
-          link: a.url,
-          source: 'Dev.to',
-          lang: 'US',
-          pubDate: a.published_at,
-        })
-      }
-    }
-    return results
-  } catch {
-    return []
-  }
+  return results
 }
 
 export async function fetchAllNews(): Promise<NewsItem[]> {
   const results = await Promise.allSettled([
-    ...RSS_SOURCES.map((s) => fetchRSS(s.url, s.lang)),
+    ...RSS_SOURCES.map((s) => fetchRSS(s.url, s.lang, 'Google News')),
+    ...DIRECT_RSS.map((s) => fetchRSS(s.url, s.lang, s.source)),
     fetchHackerNews(),
     fetchReddit(),
-    fetchDevTo(),
   ])
 
   const all: NewsItem[] = []
@@ -133,12 +128,14 @@ export async function fetchAllNews(): Promise<NewsItem[]> {
     if (r.status === 'fulfilled') all.push(...r.value)
   }
 
-  // Deduplicate by title similarity
+  // Sort by recency and deduplicate
   const seen = new Set<string>()
-  return all.filter((item) => {
-    const key = item.title.slice(0, 40).toLowerCase()
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+  return all
+    .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+    .filter((item) => {
+      const key = item.title.slice(0, 45).toLowerCase().replace(/\s+/g, ' ')
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
 }

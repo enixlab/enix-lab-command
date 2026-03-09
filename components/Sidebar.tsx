@@ -1,13 +1,14 @@
 'use client'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: '⬡', desc: 'Vue globale' },
-  { href: '/crm', label: 'CRM', icon: '👥', desc: 'Contacts & Pipeline' },
+  { href: '/crm', label: 'War Room CRM', icon: '👥', desc: 'Contacts & Pipeline' },
   { href: '/agenda', label: 'Agenda', icon: '📅', desc: 'Rendez-vous' },
   { href: '/devis', label: 'Devis / Factures', icon: '📄', desc: 'Facturation' },
-  { href: '/newslab', label: 'NewsLab', icon: '📰', desc: 'Articles automatiques' },
+  { href: '/newslab', label: 'NewsLab MAG', icon: '📰', desc: 'Articles IA automatiques' },
   { href: '/arsenal', label: 'Arsenal SMMA', icon: '⚔️', desc: 'Scraper & Prospection' },
 ]
 
@@ -24,27 +25,26 @@ export default function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div className="p-6 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="p-5 border-b" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-3">
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              background: 'var(--brand)',
-              clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
-              flexShrink: 0,
-            }}
+          <Image
+            src="/logo-small.png"
+            alt="ENIX LAB"
+            width={34}
+            height={34}
+            style={{ flexShrink: 0, objectFit: 'contain' }}
           />
           <div>
-            <div
-              className="font-oswald font-bold text-white"
-              style={{ fontSize: 15, letterSpacing: 2 }}
-            >
-              ENIX LAB®
-            </div>
+            <Image
+              src="/logo-enix.png"
+              alt="ENIX LAB®"
+              width={110}
+              height={22}
+              style={{ objectFit: 'contain', filter: 'brightness(1.05)' }}
+            />
             <div
               className="font-mono"
-              style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5, marginTop: 1 }}
+              style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5, marginTop: 3 }}
             >
               COMMAND CENTER
             </div>
@@ -105,8 +105,8 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="font-mono" style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1 }}>
-          <div>BUILD v1.0.0</div>
-          <div style={{ marginTop: 2 }}>VOID CONSTRUCTIVISM</div>
+          <div style={{ color: 'var(--brand)', opacity: 0.8, marginBottom: 2 }}>✦ CLAUDE OPUS 4.6</div>
+          <div>BUILD v2.0.0 — VOID CONSTRUCTIVISM</div>
           <div style={{ marginTop: 2, color: 'var(--brand)', opacity: 0.7 }}>
             {new Date().toLocaleDateString('fr-FR')}
           </div>

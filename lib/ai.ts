@@ -2,11 +2,13 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const GROQ_KEY = process.env.GROQ_API_KEY
 
+const CLAUDE_MODEL = 'claude-opus-4-6'
+
 export async function generateContent(
   prompt: string,
   systemPrompt?: string
 ): Promise<string> {
-  // Priority: Claude > Groq > Gemini
+  // Priority: Claude Opus > Groq > Gemini
   if (ANTHROPIC_KEY) return generateWithClaude(prompt, systemPrompt)
   if (GROQ_KEY) return generateWithGroq(prompt, systemPrompt)
   return generateWithGemini(prompt)
@@ -43,7 +45,7 @@ async function generateWithClaude(prompt: string, system?: string): Promise<stri
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: CLAUDE_MODEL,
       max_tokens: 4096,
       system: system || NEWSLAB_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
@@ -82,14 +84,14 @@ export const NEWSLAB_SYSTEM_PROMPT = `Tu es l'Agent NewsLab MAG — rédacteur e
 - UN ANGLE PAR SECTION : Chaque bloc fait avancer UN argument. Pas deux. Un.
 
 ## SKILLS HUMANIZER (OBLIGATOIRES)
-- ZERO AI VOCABULARY : Interdit — "En conclusion", "Il est important de noter", "crucial", "pivotal", "synergies", "tapisserie", "souligner", "néanmoins", "de plus", "en outre".
+- ZERO AI VOCABULARY : Interdit — "En conclusion", "Il est important de noter", "crucial", "pivotal", "synergies", "tapisserie", "souligner", "néanmoins", "de plus", "en outre", "à l'ère de", "paysage".
 - RYTHME VARIÉ : Mélange phrases courtes. Et longues qui respirent et développent une idée jusqu'au bout avant de conclure. Puis très courtes. Ça crée du mouvement.
 - LANGAGE DIRECT : "c'est" pas "cela constitue". "faire" pas "effectuer". "donner" pas "octroyer".
 - OPINION ASSUMÉE : Dis ce que tu penses. Vraiment. Pas ce que tout le monde dit.
 - HUMOUR SEC : Une vanne par article. Pas plus. Elle doit être chirurgicale.
 - ZERO ARROGANCE : Tu partages une info avec un pote qui s'y connaît. Tu ne fais pas la leçon.
 
-## STRUCTURE OBLIGATOIRE (DANS CETT ORDRE EXACT)
+## STRUCTURE OBLIGATOIRE (DANS CET ORDRE EXACT)
 1. TITRE H1 : Emoji + Titre choquant + Parenthèse NewsLab (SEO). Ex: 🤖 GPT-5.4 : LE MODÈLE QUI PENSE COMME UN BANQUIER (ET QUI VOUS REGARDE FAIRE)
 2. INTRO — "Imaginez la scène." : Image mentale forte. Storytelling pur. 3-4 phrases maximum. Tension émotionnelle immédiate.
 3. HOOK italique : "Et si X ? Et si on nous cachait Y ?" — ouvre une boucle cognitive.
@@ -129,7 +131,7 @@ ${rejectedContext}
 
 L'article doit suivre EXACTEMENT la structure du system prompt (14 sections dans l'ordre).
 Le contenu doit être en HTML avec h1, h2, h3, p, blockquote, ul, hr, strong, em.
-Minimum 600 mots. Maximum 1200 mots. Langue : Français uniquement.
+Minimum 700 mots. Maximum 1300 mots. Langue : Français uniquement.
 
 Réponds en JSON strict (et UNIQUEMENT du JSON, sans markdown autour) :
 {
@@ -140,7 +142,11 @@ Réponds en JSON strict (et UNIQUEMENT du JSON, sans markdown autour) :
 }`
 
   const raw = await generateContent(prompt, NEWSLAB_SYSTEM_PROMPT)
-  const cleaned = raw.replace(/```json|```/g, '').trim()
+  // Robust JSON extraction: find first { and last }
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('No JSON found in AI response')
+  const cleaned = raw.slice(start, end + 1)
   return JSON.parse(cleaned)
 }
 
@@ -194,6 +200,8 @@ Réponds en JSON :
 Ton : Professionnel, direct, créateur d'urgence. Jamais fade. JSON uniquement.`
 
   const raw = await generateContent(prompt)
-  const cleaned = raw.replace(/```json|```/g, '').trim()
-  return JSON.parse(cleaned)
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('No JSON in email response')
+  return JSON.parse(raw.slice(start, end + 1))
 }
